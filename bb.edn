@@ -1,4 +1,4 @@
-{:deps {com.github.hephaistox/auto-build {:git/sha "921f2019af576aa421df50c8b6cea61989ea30c0"}}
+{:deps {com.github.hephaistox/auto-build {:git/sha "6e9a158ebf50ed9d0291f05c767b056c24508ca5"}}
  :paths ["src"]
  :tasks
  {:requires [[auto-build.os.exit-codes] [auto-build.os.exiting :refer [exit]]]
@@ -15,7 +15,11 @@
   clean {:doc "Clean temporary files"
          :requires [[auto-build.tasks.clean :as task-clean]
                     [auto-build.echo :refer [level1-header]]]
-         :task (-> (task-clean/clean level1-header "." [".DS_Store"] [".cpcache"] (current-task))
+         :task (-> (task-clean/clean level1-header
+                                     "."
+                                     [".DS_Store"]
+                                     [".cpcache" "tmp" ".shadow-cljs"]
+                                     (current-task))
                    exit)}
   clj-test
   {:doc "Test with clj"
@@ -56,7 +60,7 @@
   gha {:doc "For github action tests"
        :task (do (shell "bb clj-test test-clj -v") (shell "bb cljs-node-test all -v"))}
   heph-info {:doc "Hephaistox project info"
-             :extra-paths ["env/dev/resources"]
+             :extra-paths []
              :requires [[auto-build.tasks.heph-info :as heph-info]
                         [auto-build.echo :refer [level1-header]]]
              :task (-> (heph-info/heph-info level1-header (current-task) ".")
@@ -68,11 +72,7 @@
   repl {:doc "Clojure repl"
         :override-builtin true
         :requires [[auto-build.tasks.repl :as build-repl] [auto-build.echo :refer [level1-header]]]
-        :task (-> (build-repl/repl level1-header "." (current-task))
-                  exit)}
-  uberjar {:doc "Uberjar"
-           :override-builtin true
-           :requires [[auto-build.tasks.uberjar :as build-uberjar]
-                      [auto-build.echo :refer [level1-header]]]
-           :task (-> (build-uberjar/uberjar level1-header "." "target/uberjar" "")
-                     exit)}}}
+        :task
+        (->
+          (build-repl/repl level1-header "." (current-task) [:cljs-deps :test-clj :test-demo] 7005)
+          exit)}}}

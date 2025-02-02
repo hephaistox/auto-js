@@ -2,19 +2,12 @@
  {:antq {:deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}
                 org.slf4j/slf4j-nop {:mvn/version "2.0.17"}}
          :main-opts ["-m" "antq.core"]}
-  :build {:deps {io.github.clojure/tools.build {:git/tag "v0.10.7"}}
-          :extra-paths ["build"]}
-  :cider-repl {:exec-fn auto-build.repl.cider-entry-point/start
-               :extra-deps {com.github.hephaistox/auto-build
-                            {:git/sha "921f2019af576aa421df50c8b6cea61989ea30c0"}}
-               :extra-paths ["env/dev/resources" "test/unit/cljc" "test/demo/cljc"]
-               :jvm-opts ["-Djdk.attach.allowAttachSelf=true"]}
   :clj-test-runner {:exec-fn cognitect.test-runner.api/test
                     :extra-deps {com.cognitect/test-runner
                                  {:git/url "https://github.com/cognitect-labs/test-runner"
                                   :sha "3f288f1f16d167723ad87cc35b1dfee3c1681e10"}}}
   :cljs-deps {:extra-deps {thheller/shadow-cljs {:mvn/version "2.28.21"}}
-              :extra-paths ["src/cljc" "env/dev/resources" "test/unit/cljc"]}
+              :extra-paths ["src/cljc" "test/unit/cljc"]}
   :codox {:exec-args
           {:description
            "`auto-js` is about all core technical functionalities we may need to start a project."
@@ -25,8 +18,9 @@
           :exec-fn codox.main/generate-docs
           :extra-deps {codox/codox {:mvn/version "0.10.8"}}}
   :test-clj {:extra-paths ["test/unit/cljc"]
-             :main-opts ["-m" "cognitect.test-runner" "-r" ".*-test.*" "-d" "test/clj" "test/cljc"]}
-  :test-demo {:extra-paths ["test/demo/cljc"]}}
- :deps {com.github.hephaistox/auto-opti {:git/sha "95f8b0b88875346ae0db4ce6e4b6b331618412fb"}
-        com.github.hephaistox/clj-xchart {:git/sha "83e0d78f853d7a1212075f36f9dae22e145ffd6e"}}
- :paths ["src/cljc"]}
+             :main-opts ["-m" "cognitect.test-runner" "-r" ".*-test.*" "-d" "test/unit/cljc"]}
+  :test-demo {:extra-paths ["test/demo/clj"]}}
+ :deps {com.github.hephaistox/auto-core {:git/sha "e9bd003098e875d9db98709d0c9104293b63d852"}
+        com.github.hephaistox/auto-opti {:git/sha "39cf0c605178b8f88419bad5adb2d0c4390d5bb3"}
+        com.github.hephaistox/clj-xchart {:git/sha "02017c5b2806c51c25eafebc88c6c36040d70f83"}}
+ :paths ["src/cljc" "src/clj"]}

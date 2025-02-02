@@ -7,5 +7,6 @@
                   :output-to "tmp/ltest.js"
                   :target :node-test}}
  :deps {:aliases [:cljs-deps]}
+ :dev-http {9602 ["tmp/browser-test"]}
  :http {:port 9505}
  :nrepl {:port 7105}}

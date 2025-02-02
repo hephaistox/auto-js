@@ -1,0 +1,11 @@
+{:builds {:browser-test {:ns-regexp "-test$"
+                         :runner-ns shadow.test.browser
+                         :target :browser-test
+                         :test-dir "tmp/browser-test"}
+          :ltest {:autorun true
+                  :ns-regexp "-test$"
+                  :output-to "tmp/ltest.js"
+                  :target :node-test}}
+ :deps {:aliases [:cljs-deps]}
+ :dev-http {8290 ["tmp/browser-test"]}
+ :nrepl {:port 7002}}

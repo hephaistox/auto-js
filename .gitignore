@@ -1,0 +1,19 @@
+**/**/.nrepl-port
+**/.DS_Store
+**/.clj-kondo/.cache
+**/.cpcache/
+# Private credentials
+**/.clever.json
+**/tmp
+
+#intellij
+.idea/
+**.iml
+**/**.iml
+
+node_modules
+.shadow-cljs
+
+docs/wiki/
+docs/codox/
+target

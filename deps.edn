@@ -27,7 +27,8 @@
                                                        "e907e29f65049a805c5a33e2f60bbe838c268a1a"}
                       refactor-nrepl/refactor-nrepl {:mvn/version "3.10.0"}}
          :extra-paths
-         ["env/dev/resources" "test/clj" "test/cljc" "test/resources" "test/src" "test/resources"]}
+         ["env/dev/resources" "test/clj" "test/cljc" "test/resources" "test/src" "test/resources"]
+         :jvm-opts ["-Djdk.attach.allowAttachSelf=true"]}
   :test-clj {:extra-paths ["test/clj" "test/cljc" "test/resources"]
              :main-opts
              ["-m" "cognitect.test-runner" "-r" ".*-test.*" "-d" "test/clj" "test/cljc"]}}

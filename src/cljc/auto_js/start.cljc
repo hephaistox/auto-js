@@ -36,53 +36,62 @@
 ;; ********************************************************************************
 
 (def registry
-  {:input-stock (fn [entities entity-id]
+  {:input-stock (fn [{:keys [entities resources]} entity-id]
                   (let [entity (get entities entity-id)
                         {:keys [current-operation next-bucket]} entity
                         {:keys [m pt]} current-operation
                         new-bucket (+ next-bucket pt)]
-                    (-> entities
-                        (update entity-id assoc :step :prod-started :next-bucket new-bucket)
-                        (update-vals (fn [other-entity]
-                                       (cond-> other-entity
-                                         (and (= m (get-in other-entity [:current-operation :m]))
-                                              (contains? #{:input-stock :prod-start}
-                                                         (:step other-entity)))
-                                         (assoc :next-bucket new-bucket)))))))
-   :prod-started (fn [entities entity-id]
+                    {:resources (update resources m assoc :started next-bucket)
+                     :entities
+                     (-> entities
+                         (update entity-id assoc :step :prod-started :next-bucket new-bucket)
+                         (update-vals (fn [other-entity]
+                                        (cond-> other-entity
+                                          (and (= m (get-in other-entity [:current-operation :m]))
+                                               (contains? #{:input-stock :prod-start}
+                                                          (:step other-entity)))
+                                          (assoc :next-bucket new-bucket)))))}))
+   :prod-started (fn [{:keys [entities resources]} entity-id]
                    (let [entity (get entities entity-id)
-                         {:keys [next-ops]} entity
+                         {:keys [next-ops current-operation]} entity
+                         {:keys [m pt]} current-operation
                          rnext-ops (rest next-ops)]
-                     (if-let [current-operation (first next-ops)]
-                       (update entities
-                               entity-id
-                               assoc
-                               :step :input-stock
-                               :next-ops rnext-ops
-                               :current-operation current-operation)
-                       (update entities
-                               entity-id
-                               assoc
-                               :step :entity-dead
-                               :next-ops rnext-ops
-                               :current-operation nil))))
-   :entity-dead (fn [entities _entity-id] entities)})
+                     {:resources (let [cumulated-time (get-in resources [m :cumulated-time] 0)]
+                                   (-> resources
+                                       (update m dissoc :started)
+                                       (update m assoc :cumulated-time (+ cumulated-time pt))))
+                      :entities (if-let [current-operation (first next-ops)]
+                                  (update entities
+                                          entity-id
+                                          assoc
+                                          :step :input-stock
+                                          :next-ops rnext-ops
+                                          :current-operation current-operation)
+                                  (update entities
+                                          entity-id
+                                          assoc
+                                          :step :done
+                                          :next-ops rnext-ops
+                                          :current-operation nil))}))
+   :done (fn [event-input _entity-id] event-input)})
 
 (defn next-entity-buckets
   "Returns the buckets where entities where an event occur"
   [entities]
   (some->> entities
            vals
-           (keep (fn [entity] (when-not (= :entity-dead (:step entity)) (:next-bucket entity))))
+           (keep (fn [entity] (when-not (= :done (:step entity)) (:next-bucket entity))))
            vec))
 
 (defn- get-earliest-entity-event
   "Returns the first entity that will trigger an event"
-  [entities required-bucket]
+  [{:keys [entities]
+    :as event-input}
+   required-bucket]
   (loop [rentities entities]
     (let [[entity-id {:keys [step next-bucket]}] (first rentities)]
-      (if (and (= next-bucket required-bucket) (not= step :entity-dead))
-        ((get registry step) entities entity-id)
+      (if (and (= next-bucket required-bucket) (not= step :done))
+        ((get registry step) event-input entity-id)
         (recur (rest entities))))))
 
 ;; ********************************************************************************
@@ -125,6 +134,7 @@
            bucket starting-bucket
            next-creation starting-bucket
            it 0
+           resources {}
            entities {}]
       (let [next-buckets (cond-> (next-entity-buckets entities)
                            ;;NOTE Consider next-creation only if some entities are to be created
@@ -133,6 +143,7 @@
                             (merge model-data
                                    {:nb-entity nb-entity
                                     :bucket b
+                                    :resources resources
                                     :next-creation next-creation
                                     :iteration it
                                     :entities entities
@@ -162,16 +173,15 @@
                     entities (assoc entities entity-id new-entity)]
                 (if (< nb-entity max-nb-entity)
                   ;;NOTE Prepare next entity creation
-                  (recur nb-entity bucket (+ waiting-time next-creation) it entities)
+                  (recur nb-entity bucket (+ waiting-time next-creation) it resources entities)
                   ;;NOTE Create the last one, `nil` next-creation deactivate the feature
-                  (recur nb-entity bucket nil it entities)))
+                  (recur nb-entity bucket nil it resources entities)))
               :else
               ;;NOTE An entity is updated
-              (recur nb-entity
-                     bucket
-                     next-creation
-                     it
-                     (get-earliest-entity-event entities bucket)))))))))
+              (let [{:keys [resources entities]} (get-earliest-entity-event {:entities entities
+                                                                             :resources resources}
+                                                                            bucket)]
+                (recur nb-entity bucket next-creation it resources entities)))))))))
 
 ;; ********************************************************************************
 ;; Printers
@@ -183,36 +193,69 @@
   #?(:clj (apply format s args)
      :cljs (apply gstring/format s args)))
 
+(defn occupation-rate [val all] (if (and (number? val) (pos? all)) (* 100.0 (/ val all)) 100.0))
+
+(defn print-occupation
+  [cumulated started bucket debug]
+  (case debug
+    :simple (when cumulated (print (f "  (%3.2f%%)" (occupation-rate cumulated bucket))))
+    :medium (cond
+              (and cumulated started)
+              (print (f "  (%3s -> *, %3.2f%%)" started (occupation-rate cumulated bucket)))
+              cumulated (print (f "  (    -> *, %3.2f%%)" (occupation-rate cumulated bucket)))
+              started (print (f "  (%3s -> *)" started))
+              :else (print))
+    :detailed
+    (cond
+      (and cumulated started)
+      (print (f "  (%3s -> %3s*, %3.2f%%)" started cumulated (occupation-rate cumulated bucket)))
+      cumulated (print (f "  (    -> %3s , %3.2f%%)" cumulated (occupation-rate cumulated bucket)))
+      started (print (f "  (%3s ->    *,    _ %%)" started))
+      :else (print))))
+
+(defn other-entities
+  [other-entities]
+  (->> other-entities
+       (map (fn [[entity-step entities]] (f "%s(%3d)" (name entity-step) (count entities))))
+       (apply str "products ")))
+
 (defn print-workshop
   [model]
-  (let [{:keys [entities bucket iteration]} model]
-    (println (apply str (repeat 80 "*")))
-    (println "bucket=" bucket ", iteration=" iteration)
-    (println "      | Input      | Process   |")
-    (doseq [machine (machines model)]
-      (print (f "%4s" (name machine)) " | ")
+  (let [{:keys [entities bucket iteration resources]} model]
+    ;    (println (apply str (repeat 80 "*")))
+    (println "iteration=" iteration
+             ", bucket=" bucket
+             " " (->> entities
+                      (map (fn [[entity-id entity]] (assoc entity :entity-id entity-id)))
+                      (filter (fn [entity] (nil? (:m (:current-operation entity)))))
+                      (group-by :step)
+                      other-entities))
+    (doseq [m (machines model)]
+      (print (f "%4s" (name m)) " | ")
       (let [{:keys [input-stock prod-started]}
             (->> entities
                  (map (fn [[entity-id entity]] (assoc entity :entity-id entity-id)))
-                 (filter (fn [entity] (= machine (:m (:current-operation entity)))))
+                 (filter (fn [entity] (= m (:m (:current-operation entity)))))
                  (group-by :step))]
         (print (f "%10s" (str/join ", " (mapv #(f "%4s" (:entity-id %)) input-stock))) "|")
         (print (f "%10s" (str/join ", " (mapv #(f "%4s" (:entity-id %)) prod-started))) "|"))
-      (println))
-    (let [other-entities (->> entities
-                              (map (fn [[entity-id entity]] (assoc entity :entity-id entity-id)))
-                              (filter (fn [entity] (nil? (:m (:current-operation entity)))))
-                              (group-by :step))]
-      (doseq [[entity-step entities] other-entities]
-        (println (count entities) "entities in" (name entity-step))))))
+      (print-occupation (get-in resources [m :cumulated-time])
+                        (get-in resources [m :started])
+                        bucket
+                        :simple)
+      (println))))
 
-(-> (run data 3)
+;; ********************************************************************************
+;; Tests
+;; ********************************************************************************
+
+(-> (run data 14)
     print-workshop)
 
 (loop [it (range 0 400)]
   (let [model (run data (first it))]
     (cond
-      (= (:status model) :no-workload) (println "no more workload")
+      (= (:status model) :no-workload) (do (print-workshop model) (println "no more workload"))
       (seq it)
       (do (print-workshop model)
           (let [rit (rest it)]
@@ -221,6 +264,9 @@
 (run data 0)
 (run data 1)
 (run data 2)
+(run data 3)
+(run data 4)
+(run data 8)
 (run data 3)
 (run data 14)
 (run data 15)

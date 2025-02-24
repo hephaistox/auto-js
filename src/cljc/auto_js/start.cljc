@@ -10,7 +10,7 @@
 ;; ********************************************************************************
 
 (def data
-  {:max-nb-entity 2
+  {:max-nb-entity 400
    :routes {:blue [{:m :m4
                     :pt 1}
                    {:m :m2
@@ -24,24 +24,27 @@
                      {:m :m1
                       :pt 1}]}
    :starting-bucket 0
-   :waiting-time 0
+   :waiting-time 10
    :resource-input {:m1 {}
                     :m2 {}
                     :m3 {}
                     :m4 {}}
    :seed #uuid "e85427c1-ed25-4ed4-9b11-52238d268265"})
 
+(defn occupation-rate [val all] (if (and (number? val) (pos? all)) (* 100.0 (/ val all)) 100.0))
+
 ;; ********************************************************************************
 ;; Events
 ;; ********************************************************************************
 
 (def registry
-  {:input-stock (fn [{:keys [entities resources]} entity-id]
+  {:input-stock (fn [{:keys [entities resources stats]} entity-id]
                   (let [entity (get entities entity-id)
                         {:keys [current-operation next-bucket]} entity
                         {:keys [m pt]} current-operation
                         new-bucket (+ next-bucket pt)]
                     {:resources (update resources m assoc :started next-bucket)
+                     :stats stats
                      :entities
                      (-> entities
                          (update entity-id assoc :step :prod-started :next-bucket new-bucket)
@@ -51,36 +54,38 @@
                                                (contains? #{:input-stock :prod-start}
                                                           (:step other-entity)))
                                           (assoc :next-bucket new-bucket)))))}))
-   :prod-started (fn [{:keys [entities resources]} entity-id]
-                   (let [entity (get entities entity-id)
-                         {:keys [next-ops current-operation]} entity
-                         {:keys [m pt]} current-operation
-                         rnext-ops (rest next-ops)]
-                     {:resources (let [cumulated-time (get-in resources [m :cumulated-time] 0)]
-                                   (-> resources
-                                       (update m dissoc :started)
-                                       (update m assoc :cumulated-time (+ cumulated-time pt))))
-                      :entities (if-let [current-operation (first next-ops)]
-                                  (update entities
-                                          entity-id
-                                          assoc
-                                          :step :input-stock
-                                          :next-ops rnext-ops
-                                          :current-operation current-operation)
-                                  (update entities
-                                          entity-id
-                                          assoc
-                                          :step :done
-                                          :next-ops rnext-ops
-                                          :current-operation nil))}))
-   :done (fn [event-input _entity-id] event-input)})
+   :prod-started
+   (fn [{:keys [entities stats resources]} entity-id]
+     (let [entity (get entities entity-id)
+           {:keys [next-ops current-operation start-bucket next-bucket route-id]} entity
+           {:keys [m pt]} current-operation
+           rnext-ops (rest next-ops)
+           throughput (- next-bucket start-bucket)
+           updated-resources (let [cumulated-time (get-in resources [m :cumulated-time] 0)]
+                               (-> resources
+                                   (update m dissoc :started)
+                                   (update m assoc :cumulated-time (+ cumulated-time pt))))]
+       (if-let [current-operation (first next-ops)]
+         ;;NOTE A next operation happens
+         {:resources updated-resources
+          :stats stats
+          :entities (-> entities
+                        (update entity-id
+                                assoc
+                                :step :input-stock
+                                :next-ops rnext-ops
+                                :current-operation current-operation))}
+         ;;NOTE This was the last operation, cleaning of that entity
+         {:resources updated-resources
+          :stats (update stats route-id conj throughput)
+          :entities (dissoc entities entity-id)})))})
 
 (defn next-entity-buckets
   "Returns the buckets where entities where an event occur"
   [entities]
   (some->> entities
            vals
-           (keep (fn [entity] (when-not (= :done (:step entity)) (:next-bucket entity))))
+           (keep (fn [entity] (:next-bucket entity)))
            vec))
 
 (defn- get-earliest-entity-event
@@ -90,9 +95,9 @@
    required-bucket]
   (loop [rentities entities]
     (let [[entity-id {:keys [step next-bucket]}] (first rentities)]
-      (if (and (= next-bucket required-bucket) (not= step :done))
+      (if (= next-bucket required-bucket)
         ((get registry step) event-input entity-id)
-        (recur (rest entities))))))
+        (let [rrentities (rest rentities)] (when (seq rrentities) (recur (rest rentities))))))))
 
 ;; ********************************************************************************
 ;; Route
@@ -135,7 +140,8 @@
            next-creation starting-bucket
            it 0
            resources {}
-           entities {}]
+           entities {}
+           stats {}]
       (let [next-buckets (cond-> (next-entity-buckets entities)
                            ;;NOTE Consider next-creation only if some entities are to be created
                            next-creation (conj next-creation))
@@ -147,6 +153,7 @@
                                     :next-creation next-creation
                                     :iteration it
                                     :entities entities
+                                    :stats stats
                                     :status status}))]
         (cond
           (empty? next-buckets)
@@ -166,6 +173,7 @@
                     route (get routes route-id)
                     nb-entity (inc nb-entity)
                     new-entity {:route-id route-id
+                                :start-bucket bucket
                                 :next-bucket bucket
                                 :step :input-stock
                                 :current-operation (first route)
@@ -173,15 +181,23 @@
                     entities (assoc entities entity-id new-entity)]
                 (if (< nb-entity max-nb-entity)
                   ;;NOTE Prepare next entity creation
-                  (recur nb-entity bucket (+ waiting-time next-creation) it resources entities)
+                  (recur nb-entity
+                         bucket
+                         (+ waiting-time next-creation)
+                         it
+                         resources
+                         entities
+                         stats)
                   ;;NOTE Create the last one, `nil` next-creation deactivate the feature
-                  (recur nb-entity bucket nil it resources entities)))
+                  (recur nb-entity bucket nil it resources entities stats)))
               :else
               ;;NOTE An entity is updated
-              (let [{:keys [resources entities]} (get-earliest-entity-event {:entities entities
-                                                                             :resources resources}
-                                                                            bucket)]
-                (recur nb-entity bucket next-creation it resources entities)))))))))
+              (let [{:keys [resources entities stats]} (get-earliest-entity-event
+                                                        {:entities entities
+                                                         :stats stats
+                                                         :resources resources}
+                                                        bucket)]
+                (recur nb-entity bucket next-creation it resources entities stats)))))))))
 
 ;; ********************************************************************************
 ;; Printers
@@ -193,7 +209,7 @@
   #?(:clj (apply format s args)
      :cljs (apply gstring/format s args)))
 
-(defn occupation-rate [val all] (if (and (number? val) (pos? all)) (* 100.0 (/ val all)) 100.0))
+
 
 (defn print-occupation
   [cumulated started bucket debug]
@@ -245,21 +261,39 @@
                         :simple)
       (println))))
 
+(defn stats
+  [model]
+  (let [{:keys [bucket resources stats]} model]
+    {:resources (-> resources
+                    (update-vals (fn [{:keys [cumulated-time]
+                                       :as resource}]
+                                   (-> resource
+                                       (assoc :occupation-rate
+                                              (occupation-rate cumulated-time bucket))))))
+     :stats (-> stats
+                (update-vals frequencies))
+     :bucket bucket}))
+
 ;; ********************************************************************************
 ;; Tests
 ;; ********************************************************************************
 
-(-> (run data 14)
+(-> (run data 200)
+    stats)
+
+(-> (run data 9)
     print-workshop)
 
-(loop [it (range 0 400)]
-  (let [model (run data (first it))]
-    (cond
-      (= (:status model) :no-workload) (do (print-workshop model) (println "no more workload"))
-      (seq it)
-      (do (print-workshop model)
-          (let [rit (rest it)]
-            (if (seq rit) (recur (rest it)) (println "stopped before the end of execution")))))))
+(time (loop [it (range 0 400)]
+        (let [model (run data (first it))]
+          (cond
+            (= (:status model) :no-workload)
+            (do (print-workshop model) (println "no more workload") (println ""))
+            (seq it) (do (print-workshop model)
+                         (let [rit (rest it)]
+                           (if (seq rit)
+                             (recur (rest it))
+                             (println "stopped before the end of execution"))))))))
 
 (run data 0)
 (run data 1)
@@ -267,7 +301,8 @@
 (run data 3)
 (run data 4)
 (run data 8)
-(run data 3)
+(run data 9)
+(run data 13)
 (run data 14)
 (run data 15)
 (run data 200)

@@ -5,6 +5,12 @@
       :cljs [cljs.test :refer [deftest is] :include-macros true])))
 
 (deftest occupation-s-test
-  (is (= "(75.00%)" (sut/occupation-s 10 14 16 :simple)))
-  (is (= "( 14 -> *, 75.00%)" (sut/occupation-s 10 14 16 :medium)))
-  (is (= "( 14 ->  12 , 75.00%)" (sut/occupation-s 10 14 16 :detailed))))
+  (is (= "50.00%"
+         (sut/occupation-s {:cumulated-time 10
+                            :machine-start 20}
+                           20)))
+  (is (= "60.00%"
+         (sut/occupation-s {:cumulated-time 10
+                            :machine-start 20}
+                           25))
+      "Time spend busy since last machine-start is counted in the occupation"))

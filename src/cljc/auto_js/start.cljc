@@ -6,45 +6,8 @@
    [clojure.string         :as str]))
 
 ;; ********************************************************************************
-;; Data
+;; Helpers
 ;; ********************************************************************************
-
-(def data
-  {:max-nb-entity 100
-   ;; Add route proba
-   :routes {:blue [{:m :m4
-                    :pt {:dstb-name :normal
-                         :location 20
-                         :scale 0.2}}
-                   {:m :m2
-                    :pt {:dstb-name :normal
-                         :location 30
-                         :scale 0.2}}
-                   {:m :m1
-                    :pt {:dstb-name :normal
-                         :location 20
-                         :scale 0.2}}]
-            :purple [{:m :m4
-                      :pt {:dstb-name :normal
-                           :location 20
-                           :scale 0.2}}
-                     {:m :m3
-                      :pt {:dstb-name :normal
-                           :location 30
-                           :scale 0.2}}
-                     {:m :m1
-                      :pt {:dstb-name :normal
-                           :location 10
-                           :scale 0.2}}]}
-   :starting-bucket 0
-   :waiting-time {:location 10
-                  :dstb-name :normal
-                  :scale 0.2}
-   :resource-input {:m1 {}
-                    :m2 {}
-                    :m3 {}
-                    :m4 {}}
-   :seed #uuid "e85427c1-ed25-4ed4-9b11-52238d268265"})
 
 (defn occupation-rate [val all] (if (and (number? val) (pos? all)) (* 100.0 (/ val all)) 0.0))
 
@@ -129,6 +92,7 @@
             (update :past-events
                     conj
                     {:id :create-new-entity
+                     :bucket bucket
                      :entity-id entity-id
                      :waiting-time waiting-time
                      :nb-entity nb-entity}))
@@ -150,6 +114,7 @@
                     conj
                     {:id :create-last-entity
                      :entity-id entity-id
+                     :bucket bucket
                      :nb-entity nb-entity}))))))
 
 (defn print-new-entity
@@ -184,6 +149,7 @@
               (update :past-events
                       conj
                       {:id :on-prod
+                       :bucket bucket
                        :current-operation current-operation
                        :entity-id entity-id}))
           (when (seq rentities) (recur rentities)))))))
@@ -223,6 +189,7 @@
                   (update :past-events
                           conj
                           {:id :on-output
+                           :bucket bucket
                            :current-operation current-operation
                            :next-op next-op
                            :entity-id entity-id}))
@@ -245,6 +212,7 @@
                           conj
                           {:id :on-output-last-op
                            :current-operation current-operation
+                           :bucket bucket
                            :next-op nil
                            :entity-id entity-id})
                   (update :entities dissoc entities entity-id))))
@@ -261,6 +229,15 @@
 (defn print-next-bucket
   [entity]
   (if (= :next-bucket (:id entity)) (pfln "Move to bucket %3d" (:next-bucket entity)) :continue))
+
+(defn find-next-bucket
+  [model]
+  (apply min
+         (:next-creation model)
+         (->> model
+              :resources
+              vals
+              (keep :machine-end))))
 
 (defn run
   "Run the jobshop model described in `model` until it `it-stop`"
@@ -287,7 +264,8 @@
                             :entities {}
                             :stats {}
                             :bucket starting-bucket))]
-      (let [{:keys [bucket it nb-entity entities]} model]
+      (let [{:keys [bucket it nb-entity entities]} model
+            next-bucket (find-next-bucket model)]
         (cond
           ;;NOTE There are too many its, we stop
           (>= it it-stop) (assoc model :status :stop-at :bucket bucket)
@@ -304,7 +282,7 @@
                                        {:id :next-bucket
                                         :bucket bucket
                                         :next-bucket (inc bucket)})
-                               (update :bucket inc)))))))))
+                               (assoc :bucket next-bucket)))))))))
 
 ;; ********************************************************************************
 ;; Printers
@@ -390,10 +368,6 @@
                 (update-vals frequencies))
      :bucket bucket}))
 
-;; ********************************************************************************
-;; Tests
-;; ********************************************************************************
-
 (defn run*
   [model it-stop]
   (-> (run model it-stop)
@@ -404,6 +378,47 @@
               :starting-bucket
               :waiting-time
               :nb-entity)))
+
+;; ********************************************************************************
+;; Tests
+;; ********************************************************************************
+
+(def data
+  {:max-nb-entity 100
+   ;; Add route proba
+   :routes {:blue [{:m :m4
+                    :pt {:dstb-name :normal
+                         :location 20
+                         :scale 0.2}}
+                   {:m :m2
+                    :pt {:dstb-name :normal
+                         :location 30
+                         :scale 0.2}}
+                   {:m :m1
+                    :pt {:dstb-name :normal
+                         :location 20
+                         :scale 0.2}}]
+            :purple [{:m :m4
+                      :pt {:dstb-name :normal
+                           :location 20
+                           :scale 0.2}}
+                     {:m :m3
+                      :pt {:dstb-name :normal
+                           :location 30
+                           :scale 0.2}}
+                     {:m :m1
+                      :pt {:dstb-name :normal
+                           :location 10
+                           :scale 0.2}}]}
+   :starting-bucket 0
+   :waiting-time {:location 10
+                  :dstb-name :normal
+                  :scale 0.2}
+   :resource-input {:m1 {}
+                    :m2 {}
+                    :m3 {}
+                    :m4 {}}
+   :seed #uuid "e85427c1-ed25-4ed4-9b11-52238d268265"})
 
 (comment
   (-> (run data 2)

@@ -11,10 +11,8 @@
 
 (defn topological-order
   "Turns the representation with repetition into a topological order"
-  [{:keys [operations jobs]
-    :as _js-pb}
-   rep]
-  (reduce (fn [v job] nil) {} rep)
+  [_js-pb rep]
+  (reduce (fn [_v _job] nil) {} rep)
   #_(loop [rep rep
            js-pb js-pb
            decoded-rep []]

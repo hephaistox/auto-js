@@ -342,6 +342,8 @@
                    {:event-id :enter-production
                     :bucket 12
                     :entity-id "p-1"
+                    :starts 12
+                    :ends 13
                     :current-operation {:m :m1
                                         :pt 1}
                     :machine {:starts 12
@@ -418,6 +420,8 @@
                            :next-event 13}}
           :bucket 12
           :past-events [{:bucket 12
+                         :starts 12
+                         :ends 13
                          :entity-id :e1
                          :event-id :enter-production
                          :machine {:starts 12
@@ -461,6 +465,8 @@
                                         :pt 1}
                     :entity-id :e1
                     :event-id :enter-production
+                    :starts 0
+                    :ends 1
                     :machine {:starts 0
                               :resource-id :m1
                               :ends 1
@@ -570,6 +576,8 @@
      :past-events [{:bucket 4
                     :current-operation {:m :m1
                                         :pt 3}
+                    :starts 4
+                    :ends 7
                     :entity-id :e2
                     :event-id :enter-production
                     :machine {:waiting-products [:e3]

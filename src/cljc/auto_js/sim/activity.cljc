@@ -49,18 +49,23 @@
 ;; **
 ;; ********************************************************************************
 
-(defn add-iteration
-  "Adds an iteration event"
-  [model bucket]
-  (let [{:keys [it]} model
-        it (inc it)]
+(defn add-iteration-past-event
+  [model]
+  (let [{:keys [it bucket]} model]
     (-> model
-        (assoc :bucket bucket :it it)
         (update :past-events
                 conj
                 {:it it
                  :event-id :iteration
                  :bucket bucket}))))
+
+(defn add-iteration
+  "Adds an iteration event"
+  [model new-bucket]
+  (let [{:keys [it]} model]
+    (-> model
+        (assoc :bucket new-bucket :it (inc it))
+        add-iteration-past-event)))
 
 (defn add-snapshot
   "Adds an event with a resource snapshot"
@@ -117,10 +122,10 @@
     (try
       (let [{:keys [create-fn nb-entity next-event nb-max waiting-time]} entity-source
             {:keys [bucket]} model
-            new-entity (if (fn? create-fn)
-                         (create-fn model entity-source)
-                         {:entity-id (str (name entity-source-id) "-" (inc nb-entity))
-                          :starts bucket})
+            new-entity (-> (if (fn? create-fn)
+                               (create-fn model entity-source)
+                               {:entity-id (str (name entity-source-id) "-" (inc nb-entity))})
+                           (assoc :starts bucket))
             new-entity-id (:entity-id new-entity)
             new-model (-> model
                           (assoc-in [:entities new-entity-id] new-entity)
@@ -331,6 +336,8 @@
                           {:bucket bucket
                            :entity-id entity-id
                            :event-id :enter-production
+                           :starts bucket
+                           :ends (+ pt bucket)
                            :current-operation current-operation
                            :machine new-machine})
                   (update-in [:entities entity-id] assoc :step :in-production))))))
@@ -368,7 +375,7 @@
                   (update-in [:entities entity-id] assoc :step :wait-in-input-stock))))))
 
 (defn ends-production
-  "Production of `entity` is ended, if exsits one `waiting-product` is picked and its production started.
+  "Production of `entity` is ended, if exists one `waiting-product` is picked and its production started.
 
   :errors : `:no-current-operation`
   :past-events : `:ends-production`
@@ -471,7 +478,8 @@
                          (if-let [entity (get-in model [:entities entity-id])]
                            (let [model (ends-production model entity)
                                  entity (get-in model [:entities entity-id])]
-                             (enter-input-stock model entity))
+                             (cond-> model
+                               entity (enter-input-stock entity)))
                            (-> model
                                (update :errors
                                        conj
@@ -491,6 +499,7 @@
                      entity-source-id
                      last?
                      snapshot
+                     ends
                      bucket
                      route-id
                      machine
@@ -503,15 +512,12 @@
           entity-id-s (f "%s" entity-id)]
       (case event-id
         :create-new-entity (if last?
-                             (pfln "%03d `%s` ->> `%s,` next in `%03d` bucket (%d/%d) - last"
-                                   bucket
+                             (pfln "`%s` ->> `%s,` bucket (%d/%d) - last"
                                    (name entity-source-id)
                                    entity-id-s
-                                   waiting-time
                                    nb-entity
                                    nb-max)
-                             (pfln "%03d `%s` ->> `%s,` next in `%03d` bucket (%d/%d)"
-                                   bucket
+                             (pfln "`%s` ->> `%s,` next in `%03d` bucket (%d/%d)"
                                    (name entity-source-id)
                                    entity-id-s
                                    waiting-time
@@ -519,8 +525,9 @@
                                    nb-max))
         :destroy-entity (pfln "Entity `%s` is destroyed" entity-id-s)
         :start-route (pfln " \\_ route `%s`" (name route-id))
-        :enter-production (pfln "`%s` starts on `%s`, during %d" entity-id-s m pt)
-        :iteration nil
+        :enter-production
+        (pfln "`%s` starts on `%s`, during %d, finish at `%03d`" entity-id-s m pt ends)
+        :iteration (pfln "`%03d` (it %03d) ********************" bucket it)
         :snapshot (do (pfln "snapshot, iteration `%d`:" it)
                       (run! (fn [{:keys [resource-id entity-id waiting-products]}]
                               (pfln "%2s (%3s) <- %s"
@@ -530,12 +537,11 @@
                             (vals snapshot)))
         :next-op (pfln "`%s` next operation to `%s`" entity-id-s (name m))
         :enter-input-stock-wait-in-stock
-        (pfln "`%03d` `%s` waits in `%s` in stock: %s"
-              bucket
+        (pfln "`%s` waits in `%s` in stock: %s"
               entity-id-s
               m
               (if (seq waiting-products) (str/join ", " waiting-products) "_"))
-        :ends-production (pfln "`%03d` `%s` ends on machine `%s`" bucket entity-id-s m)
+        :ends-production (pfln "`%s` ends on machine `%s`" entity-id-s m)
         (println "Event:" (pr-str event))))))
 
 (defn print-error
@@ -565,4 +571,10 @@
     (println "Finished with status: " col-text/font-red (name sim-status) col-text/style-reset-all)
     :error))
 
-(defn print-output [model] (show-past model) (print-status model) (print-errors model))
+(defn print-output
+  [model]
+  (let [{:keys [bucket it]} model]
+    (show-past model)
+    (pfln "Ends at `%03d`, iteration `%03d`" bucket it)
+    (print-status model)
+    (print-errors model)))

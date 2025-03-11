@@ -17,6 +17,7 @@
   [model it-stop uuid]
   (loop [model (-> model
                    (sim-activity/start (xoroshiro128 uuid))
+                   sim-activity/add-iteration-past-event
                    sim-activity/errors)]
     (if (seq (:errors model))
       model
@@ -36,8 +37,8 @@
           (>= it it-stop) (-> new-model
                               (assoc :sim-status :last-iteration-reached))
           :else (-> new-model
-                    (sim-activity/add-iteration next-bucket)
                     sim-activity/add-snapshot
+                    (sim-activity/add-iteration next-bucket)
                     recur))))))
 
 ;; ********************************************************************************
@@ -71,7 +72,7 @@
                                         :location 10
                                         :scale 0.2}}]
                      :probability 0.7}}
-   :entity-sources {:product {:nb-max 14
+   :entity-sources {:product {:nb-max 200
                               :create-fn (fn [_model entity-source]
                                            {:entity-id (str "P" (inc (:nb-entity entity-source)))})
                               :waiting-time {:location 10
@@ -85,7 +86,8 @@
    :seed #uuid "e85427c1-ed25-4ed4-9b11-52238d268265"})
 
 (-> data
-    (run 20 u)
-    sim-activity/print-output
+    (run 30000 u)
+    :stats
+    ;sim-activity/print-output
     ;;
 )

@@ -23,12 +23,6 @@
 
 (defn- stock-occupation [machine bucket] (f "%3.2f%%" (rate (:stock-occupation machine) bucket)))
 
-(defn- other-entities
-  [other-entities]
-  (->> other-entities
-       (map (fn [[entity-step entities]] (f "%s(%3d)" (name entity-step) (count entities))))
-       (apply str "products ")))
-
 (defn separator [] (println (apply str (repeat 80 "*"))))
 
 (defn print-workshop

@@ -106,12 +106,8 @@
                             :waiting-time 13}]
              :resources {}
              :routes {}
-             :stats {:entities-in {:deltas {3 1}
-                                   :start 3
-                                   :end 3}
-                     :entities-nb {:deltas {3 1}
-                                   :start 3
-                                   :end 3}}}
+             :stats {:entities-in {:deltas {3 1}}
+                     :entities-nb {:deltas {3 1}}}}
      :entity {:entity-id "product-1"
               :starts 3}}
     (-> {:entity-sources {:product {:next-event 666
@@ -125,41 +121,35 @@
         (sut/create-new-entity :product)
         (update :model clojurify)))
    "Create an entity, some remains")
-  (is
-   (=
-    {:model {:bucket 3
-             :entities {"product-1" {:entity-id "product-1"
-                                     :starts 3}}
-             :entity-sources {}
-             :errors []
-             :it 0
-             :past-events [{:bucket 3
-                            :entity-id "product-1"
-                            :event-id :create-new-entity
-                            :entity-source-id :product
-                            :last? true
-                            :nb-entity 1
-                            :nb-max 1}]
-             :resources {}
-             :routes {}
-             :stats {:entities-in {:deltas {3 1}
-                                   :start 3
-                                   :end 3}
-                     :entities-nb {:deltas {3 1}
-                                   :start 3
-                                   :end 3}}}
-     :entity {:entity-id "product-1"
-              :starts 3}}
-    (-> {:entity-sources {:product {:next-event 666
-                                    :nb-max 1
-                                    :waiting-time {:dstb-name :normal-integer
-                                                   :scale 2
-                                                   :location 13}}}
-         :bucket 3}
-        (sut/start (opt-prng/xoroshiro128 u))
-        (sut/create-new-entity :product)
-        (update :model clojurify)))
-   "Create the last entity"))
+  (is (= {:model {:bucket 3
+                  :entities {"product-1" {:entity-id "product-1"
+                                          :starts 3}}
+                  :entity-sources {}
+                  :errors []
+                  :it 0
+                  :past-events [{:bucket 3
+                                 :entity-id "product-1"
+                                 :event-id :create-new-entity
+                                 :entity-source-id :product
+                                 :last? true
+                                 :nb-entity 1
+                                 :nb-max 1}]
+                  :resources {}
+                  :routes {}
+                  :stats {:entities-in {:deltas {3 1}}
+                          :entities-nb {:deltas {3 1}}}}
+          :entity {:entity-id "product-1"
+                   :starts 3}}
+         (-> {:entity-sources {:product {:next-event 666
+                                         :nb-max 1
+                                         :waiting-time {:dstb-name :normal-integer
+                                                        :scale 2
+                                                        :location 13}}}
+              :bucket 3}
+             (sut/start (opt-prng/xoroshiro128 u))
+             (sut/create-new-entity :product)
+             (update :model clojurify)))
+      "Create the last entity"))
 
 (deftest destroy-entity-test
   (is (= {:bucket 0
@@ -177,12 +167,8 @@
   (is (= {:entities {:b 2}
           :bucket 3
           :stats {:entities {:throughputs [0]}
-                  :entities-nb {:deltas {3 -1}
-                                :start 3
-                                :end 3}
-                  :entities-out {:deltas {3 1}
-                                 :start 3
-                                 :end 3}}
+                  :entities-nb {:deltas {3 -1}}
+                  :entities-out {:deltas {3 1}}}
           :past-events [{:event-id :destroy-entity
                          :entity-id :a
                          :bucket 3}]}
@@ -219,12 +205,8 @@
                          :bucket 112}]
           :stats {:routes {:a {:throughputs [100]}}
                   :entities {:throughputs [100]}
-                  :entities-nb {:deltas {112 -1}
-                                :start 112
-                                :end 112}
-                  :entities-out {:deltas {112 1}
-                                 :start 112
-                                 :end 112}}}
+                  :entities-nb {:deltas {112 -1}}
+                  :entities-out {:deltas {112 1}}}}
          (-> {:entities {:e {:foo :bar}}
               :bucket 112}
              (sut/end-route {:starts 12
@@ -244,12 +226,8 @@
                          :bucket 12}]
           :stats {:routes {:r1 {:throughputs [9]}}
                   :entities {:throughputs [9]}
-                  :entities-nb {:deltas {12 -1}
-                                :start 12
-                                :end 12}
-                  :entities-out {:deltas {12 1}
-                                 :start 12
-                                 :end 12}}}
+                  :entities-nb {:deltas {12 -1}}
+                  :entities-out {:deltas {12 1}}}}
          (-> {:entities {:e {}}
               :bucket 12}
              (sut/next-op {:entity-id :e
@@ -279,9 +257,7 @@
 (deftest start-route-test
   (is (= {:bucket 2
           :routes {:route-a {:operations [{:a :b} {:c :d}]}}
-          :stats {:routes {:route-a {:route-nb {:deltas {2 1}
-                                                :start 2
-                                                :end 2}}}}
+          :stats {:routes {:route-a {:route-nb {:deltas {2 1}}}}}
           :past-events [{:event-id :next-op
                          :bucket 2
                          :entity-id :a
@@ -359,18 +335,10 @@
      :routes {:a {:route-id :a
                   :operations [{:m :m1
                                 :pt 1}]}}
-     :stats {:entities-nb {:deltas {12 1}
-                           :start 12
-                           :end 12}
-             :entities-in {:deltas {12 1}
-                           :start 12
-                           :end 12}
-             :routes {:a {:route-nb {:deltas {12 1}
-                                     :start 12
-                                     :end 12}}}
-             :resources {:m1 {:occupation {:deltas {12 1}
-                                           :start 12
-                                           :end 12}}}}}
+     :stats {:entities-nb {:deltas {12 1}}
+             :entities-in {:deltas {12 1}}
+             :routes {:a {:route-nb {:deltas {12 1}}}}
+             :resources {:m1 {:occupation {:deltas {12 1}}}}}}
     (-> {:bucket 12
          :resources {:m1 {}}
          :entity-sources {:p {:next-event 12
@@ -431,9 +399,7 @@
                                    :next-event 13}
                          :current-operation {:m :m1
                                              :pt 1}}]
-          :stats {:resources {:m1 {:occupation {:deltas {12 1}
-                                                :start 12
-                                                :end 12}}}}
+          :stats {:resources {:m1 {:occupation {:deltas {12 1}}}}}
           :entities {:e1 {:step :in-production}}}
          (-> {:resources {:m1 {:foo :bar}}
               :bucket 12}
@@ -478,9 +444,7 @@
                       :entity-id :e1
                       :next-event 1}}
      :routes {}
-     :stats {:resources {:m1 {:occupation {:deltas {0 1}
-                                           :start 0
-                                           :end 0}}}}}
+     :stats {:resources {:m1 {:occupation {:deltas {0 1}}}}}}
     (-> {:resources {:m1 {}}
          :entity-sources {:product {}}}
         (sut/start nil)
@@ -508,9 +472,7 @@
                            :resource-id :m1
                            :waiting-products [:e1]}}
           :routes {}
-          :stats {:resources {:m1 {:nb-in-stock {:deltas {0 1}
-                                                 :start 0
-                                                 :end 0}}}}}
+          :stats {:resources {:m1 {:nb-in-stock {:deltas {0 1}}}}}}
          (-> {:resources {:m1 {:starts 1}}}
              (sut/start nil)
              (sut/enter-input-stock {:current-operation {:m :m1}
@@ -524,48 +486,37 @@
          (-> {}
              (sut/ends-production {:entity-id :e1})))
       "No current operation raise an error")
-  (is
-   (=
-    {:bucket 1
-     :entities {}
-     :past-events [{:event-id :destroy-entity
-                    :entity-id :e1
-                    :bucket 1}
-                   {:bucket 1
-                    :entity-id :e1
-                    :event-id :end-route}
-                   {:bucket 1
-                    :current-operation {:m :m1}
-                    :entity-id :e1
-                    :event-id :ends-production
-                    :machine {}}]
-     :resources {:m1 {}}
-     :stats {:routes {:r1 {:throughputs [1]}}
-             :entities-nb {:deltas {1 -1}
-                           :start 1
-                           :end 1}
-             :entities-out {:deltas {1 1}
-                            :start 1
-                            :end 1}
-             :entities {:throughputs [1]}
-             :resources {:m1 {:occupation {:deltas {1 -1}
-                                           :start 1
-                                           :end 1}
-                              :nb-in-stock {:deltas {1 -1}
-                                            :start 1
-                                            :end 1}}}}}
-    (-> {:bucket 1
-         :entities {:e1 {:step :foo
-                         :entity-id :e1}}
-         :resources {:m1 {:starts 1
-                          :ends 2
-                          :next-event 2}}}
-        (sut/ends-production {:current-operation {:m :m1}
-                              :entity-id :e1
-                              :route-id :r1
-                              :starts 0})
-        clojurify))
-   "Stops production of `e1` on `m1`, no product waits in `m1` stock")
+  (is (= {:bucket 1
+          :entities {}
+          :past-events [{:event-id :destroy-entity
+                         :entity-id :e1
+                         :bucket 1}
+                        {:bucket 1
+                         :entity-id :e1
+                         :event-id :end-route}
+                        {:bucket 1
+                         :current-operation {:m :m1}
+                         :entity-id :e1
+                         :event-id :ends-production
+                         :machine {}}]
+          :resources {:m1 {}}
+          :stats {:routes {:r1 {:throughputs [1]}}
+                  :entities-nb {:deltas {1 -1}}
+                  :entities-out {:deltas {1 1}}
+                  :entities {:throughputs [1]}
+                  :resources {:m1 {:occupation {:deltas {1 -1}}}}}}
+         (-> {:bucket 1
+              :entities {:e1 {:step :foo
+                              :entity-id :e1}}
+              :resources {:m1 {:starts 1
+                               :ends 2
+                               :next-event 2}}}
+             (sut/ends-production {:current-operation {:m :m1}
+                                   :entity-id :e1
+                                   :route-id :r1
+                                   :starts 0})
+             clojurify))
+      "Stops production of `e1` on `m1`, no product waits in `m1` stock")
   (is
    (=
     {:bucket 4
@@ -602,19 +553,11 @@
                       :ends 7
                       :next-event 7}}
      :stats {:routes {:r1 {:throughputs [3]}}
-             :entities-nb {:deltas {4 -1}
-                           :start 4
-                           :end 4}
-             :entities-out {:deltas {4 1}
-                            :start 4
-                            :end 4}
+             :entities-nb {:deltas {4 -1}}
+             :entities-out {:deltas {4 1}}
              :entities {:throughputs [3]}
-             :resources {:m1 {:occupation {:deltas {4 0}
-                                           :start 4
-                                           :end 4}
-                              :nb-in-stock {:deltas {4 -1}
-                                            :start 4
-                                            :end 4}}}}}
+             :resources {:m1 {:occupation {:deltas {4 0}}
+                              :nb-in-stock {:deltas {4 -1}}}}}}
     (-> {:bucket 4
          :entities {:e1 {:step :foo}
                     :e2 {:step :bar

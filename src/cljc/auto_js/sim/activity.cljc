@@ -138,7 +138,7 @@
                    :nb-max nb-max
                    :nb-entity (inc nb-entity)}]
         (if (and (some? nb-max) (< (inc nb-entity) nb-max))
-          (let [actual-waiting-time (opt-dstb/resolve waiting-time)]
+          (let [actual-waiting-time (max 0 (opt-dstb/resolve waiting-time))]
             {:model (-> new-model
                         (assoc-in [:entity-sources entity-source-id]
                                   (-> entity-source
@@ -243,7 +243,8 @@
         {:keys [bucket]} model
         [current-operation & next-ops] next-ops
         current-operation (cond-> current-operation
-                            (:pt current-operation) (update :pt opt-dstb/resolve))
+                            (:pt current-operation)
+                            (update :pt (comp (partial max 0) opt-dstb/resolve)))
         new-entity (assoc entity :current-operation current-operation :next-ops next-ops)]
     (if current-operation
       (-> model
@@ -393,23 +394,23 @@
             new-machine (-> (get-in model [:resources m])
                             (dissoc :starts :ends :next-event :entity-id))
             waiting-products (get-in model [:resources m :waiting-products])
-            new-model
-            (-> model
-                (assoc-in [:resources m] new-machine)
-                (update-in [:entities entity-id] assoc :step :move-to-next-machine)
-                (update :past-events
-                        conj
-                        {:bucket bucket
-                         :entity-id entity-id
-                         :event-id :ends-production
-                         :current-operation current-operation
-                         :machine new-machine})
-                (next-op entity)
-                (update-in [:stats :resources m :nb-in-stock] (opt-tb/decnil bucket :level))
-                (update-in [:stats :resources m :occupation] (opt-tb/decnil bucket :level)))]
+            new-model (-> model
+                          (assoc-in [:resources m] new-machine)
+                          (update-in [:entities entity-id] assoc :step :move-to-next-machine)
+                          (update :past-events
+                                  conj
+                                  {:bucket bucket
+                                   :entity-id entity-id
+                                   :event-id :ends-production
+                                   :current-operation current-operation
+                                   :machine new-machine})
+                          (next-op entity)
+                          (update-in [:stats :resources m :occupation]
+                                     (opt-tb/decnil bucket :level)))]
         (if (seq waiting-products)
           (let [[entity-to-start & rwaiting-products] waiting-products]
             (-> new-model
+                (update-in [:stats :resources m :nb-in-stock] (opt-tb/decnil bucket :level))
                 (assoc-in [:resources m :waiting-products] rwaiting-products)
                 (enter-production (get-in new-model [:entities entity-to-start]))))
           new-model)))))
@@ -501,6 +502,7 @@
                      snapshot
                      ends
                      bucket
+                     nb-in-stock
                      route-id
                      machine
                      it
@@ -537,10 +539,11 @@
                             (vals snapshot)))
         :next-op (pfln "`%s` next operation to `%s`" entity-id-s (name m))
         :enter-input-stock-wait-in-stock
-        (pfln "`%s` waits in `%s` in stock: %s"
+        (pfln "`%s` waits in `%s` in stock: %s      %d"
               entity-id-s
               m
-              (if (seq waiting-products) (str/join ", " waiting-products) "_"))
+              (if (seq waiting-products) (str/join ", " waiting-products) "_")
+              (or nb-in-stock -0))
         :ends-production (pfln "`%s` ends on machine `%s`" entity-id-s m)
         (println "Event:" (pr-str event))))))
 

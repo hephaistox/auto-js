@@ -31,7 +31,7 @@
              :main-opts
              ["-m" "cognitect.test-runner" "-r" ".*-test.*" "-d" "test/unit/clj" "test/unit/cljc"]}
   :test-demo {:extra-paths ["test/demo/cljc"]}}
- :deps {com.github.hephaistox/auto-opti {:local/root "../auto_opti"}
-        com.hypirion/clj-xchart {:mvn/version "0.2.0"}
-        io.github.hephaistox/auto-core {:local/root "../auto_core"}}
+ :deps {com.github.hephaistox/auto-opti {:git/sha "ddd4c4e56950c354f88e5f0d424dbb710cb67bf4"}
+        com.hypirion/clj-xchart {:local/root "clj-xchart"}
+        io.github.hephaistox/auto-core {:git/sha "4d41497668ada474e8089403cf6f5e9d263e18ad"}}
  :paths ["src/cljc"]}

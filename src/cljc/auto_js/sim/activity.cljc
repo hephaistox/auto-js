@@ -35,7 +35,10 @@
              :errors []
              :entities {}
              :bucket bucket)
-      (update :resources #(core-map/add-ids % :resource-id))
+      (update :resources
+              #(-> %
+                   (core-map/add-ids :resource-id)
+                   (update-vals (fn [resource] (assoc resource :waiting-products [])))))
       (update :entity-sources #(core-map/add-ids % :entity-source-id))))
 
 (defn errors
@@ -408,7 +411,8 @@
                           (update-in [:stats :resources m :occupation]
                                      (opt-tb/decnil bucket :level)))]
         (if (seq waiting-products)
-          (let [[entity-to-start & rwaiting-products] waiting-products]
+          (let [[entity-to-start & rwaiting-products] waiting-products
+                rwaiting-products (vec rwaiting-products)]
             (-> new-model
                 (update-in [:stats :resources m :nb-in-stock] (opt-tb/decnil bucket :level))
                 (assoc-in [:resources m :waiting-products] rwaiting-products)
@@ -581,3 +585,22 @@
     (pfln "Ends at `%03d`, iteration `%03d`" bucket it)
     (print-status model)
     (print-errors model)))
+
+(defn last-entity-in
+  "Return the date when the last entity get in the system"
+  [model]
+  (-> model
+      :stats
+      :entities-in
+      :deltas
+      last
+      first))
+
+(defn first-entity-out
+  "Return the date when the first entity get out the system"
+  [model]
+  (-> model
+      :stats
+      :entities-out
+      :deltas
+      ffirst))

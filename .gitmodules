@@ -1,0 +1,3 @@
+[submodule "clj-xchart"]
+	path = clj-xchart
+	url = https://github.com/hypirion/clj-xchart.git

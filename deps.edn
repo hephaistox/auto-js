@@ -31,21 +31,9 @@
          ["env/dev/resources" "test/clj" "test/cljc" "test/resources" "test/src" "test/resources"]}
   :test-clj {:extra-paths ["test/clj" "test/cljc" "test/resources"]
              :main-opts
-             ["-m" "cognitect.test-runner" "-r" ".*-test.*" "-d" "test/clj" "test/cljc"]}}
- :deps {babashka/fs {:mvn/version "0.5.22"}
-        babashka/process {:mvn/version "0.5.22"}
-        com.github.hephaistox/auto-core {:git/sha "e9bd003098e875d9db98709d0c9104293b63d852"}
-        com.github.hephaistox/auto-opti {:git/sha "39cf0c605178b8f88419bad5adb2d0c4390d5bb3"}
-        com.taoensso/tempura {:mvn/version "1.5.4"}
-        com.yetanalytics/colossal-squuid {:mvn/version "0.1.5"}
-        danlentz/clj-uuid {:mvn/version "0.2.0"}
-        http-kit/http-kit {:mvn/version "2.8.0"}
-        lambdaisland/uri {:mvn/version "1.19.155"}
-        metosin/malli {:mvn/version "0.16.1"}
-        mount/mount {:mvn/version "0.1.20"}
-        org.apache.logging.log4j/log4j-api {:mvn/version "2.24.1"}
-        org.apache.logging.log4j/log4j-core {:mvn/version "2.24.1"}
-        org.apache.logging.log4j/log4j-slf4j2-impl {:mvn/version "2.24.1"}
-        org.clojure/tools.cli {:mvn/version "1.1.230"}
-        org.clojure/tools.logging {:mvn/version "1.3.0"}}
+             ["-m" "cognitect.test-runner" "-r" ".*-test.*" "-d" "test/unit/clj" "test/unit/cljc"]}
+  :test-demo {:extra-paths ["test/demo/cljc"]}}
+ :deps {com.github.hephaistox/auto-opti {:git/sha "ddd4c4e56950c354f88e5f0d424dbb710cb67bf4"}
+        com.hypirion/clj-xchart {:local/root "clj-xchart"}
+        io.github.hephaistox/auto-core {:git/sha "4d41497668ada474e8089403cf6f5e9d263e18ad"}}
  :paths ["src/cljc" "src/clj"]}

@@ -1,10 +1,7 @@
-{:deps {io.github.hephaistox/auto-build {:git/sha "e907e29f65049a805c5a33e2f60bbe838c268a1a"}}
+{:deps {com.github.hephaistox/auto-build {:git/sha "921f2019af576aa421df50c8b6cea61989ea30c0"}}
  :paths ["src"]
  :tasks
- {:init (do (def ^:dynamic exit System/exit))
-  :requires [;;NOTE Should be as small as possible to ensure `lconnect`
-             ;;can start whatever the state of the code is.
-             [auto-build.os.exit-codes]]
+ {:requires [[auto-build.os.exit-codes] [auto-build.os.exiting :refer [exit]]]
   bp {:doc "Before push"
       :task (binding [exit (fn [exit-code & _] (when-not (zero? exit-code) exit-code))]
               (-> (or (run 'format)
@@ -56,11 +53,13 @@
                      [auto-build.echo :refer [level1-header]]]
           :task (-> (task-format/format level1-header "." (current-task))
                     exit)}
+  gha {:doc "For github action tests"
+       :task (do (shell "bb clj-test test-clj -v") (shell "bb cljs-node-test all -v"))}
   heph-info {:doc "Hephaistox project info"
              :extra-paths ["env/dev/resources"]
              :requires [[auto-build.tasks.heph-info :as heph-info]
                         [auto-build.echo :refer [level1-header]]]
-             :task (-> (heph-info/heph-info level1-header (current-task))
+             :task (-> (heph-info/heph-info level1-header (current-task) ".")
                        exit)}
   lint {:doc "Lint"
         :requires [[auto-build.tasks.lint :as task-lint] [auto-build.echo :refer [level1-header]]]

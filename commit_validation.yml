@@ -1,4 +1,4 @@
-# V1 - For build project
+# V1 - For all projects
 name: Commit validation
 on:
   push:

@@ -1,10 +1,9 @@
-{:deps {io.github.hephaistox/auto-build {:git/sha "e907e29f65049a805c5a33e2f60bbe838c268a1a"}}
+{:deps {com.github.hephaistox/auto-build {:git/sha "4e4ea83b71691bd42bbbd79ee3debe821e6e802a"}
+        io.github.hephaistox/auto-build {:git/sha "e907e29f65049a805c5a33e2f60bbe838c268a1a"}}
  :paths ["src"]
  :tasks
- {:init (do (def ^:dynamic exit System/exit))
-  :requires [;;NOTE Should be as small as possible to ensure `lconnect`
-             ;;can start whatever the state of the code is.
-             [auto-build.os.exit-codes]]
+ {:init (do (def exit System/exit))
+  :requires [[auto-build.os.exit-codes]]
   bp {:doc "Before push"
       :task (binding [exit (fn [exit-code & _] (when-not (zero? exit-code) exit-code))]
               (-> (or (run 'format)

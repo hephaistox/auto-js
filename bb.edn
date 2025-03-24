@@ -1,9 +1,8 @@
-{:deps {com.github.hephaistox/auto-build {:git/sha "6e9a158ebf50ed9d0291f05c767b056c24508ca5"}
+{:deps {com.github.hephaistox/auto-build {:git/sha "4e4ea83b71691bd42bbbd79ee3debe821e6e802a"}
         io.github.hephaistox/auto-build {:git/sha "e907e29f65049a805c5a33e2f60bbe838c268a1a"}}
  :paths ["src"]
  :tasks
- {:init (do (def exit System/exit))
-  :requires [[auto-build.os.exit-codes]]
+ {:requires [[auto-build.os.exit-codes] [auto-build.os.exiting :refer [exit]]]
   bp {:doc "Before push"
       :task (binding [exit (fn [exit-code & _] (when-not (zero? exit-code) exit-code))]
               (-> (or (run 'format)
@@ -17,7 +16,11 @@
   clean {:doc "Clean temporary files"
          :requires [[auto-build.tasks.clean :as task-clean]
                     [auto-build.echo :refer [level1-header]]]
-         :task (-> (task-clean/clean level1-header "." [".DS_Store"] [".cpcache"] (current-task))
+         :task (-> (task-clean/clean level1-header
+                                     "."
+                                     [".DS_Store"]
+                                     [".cpcache" ".shadow-cljs" "node_modules" "tmp"]
+                                     (current-task))
                    exit)}
   clj-test
   {:doc "Test with clj"
@@ -48,8 +51,9 @@
         :task (do (shell "clj -M:antq") (shell "npm upgrade"))}
   docs {:doc "Docs"
         :requires [[auto-build.tasks.docs :as build-docs] [auto-build.echo :refer [level1-header]]]
-        :task (-> (build-docs/docs level1-header "." (current-task) "gh-pages")
-                  exit)}
+        :task (->
+                (build-docs/docs level1-header "." (current-task) "gh-pages" ":codox:for-clj-repl")
+                exit)}
   format {:doc "Format"
           :requires [[auto-build.tasks.formatting :as task-format]
                      [auto-build.echo :refer [level1-header]]]
@@ -68,7 +72,7 @@
   repl {:doc "Clojure repl"
         :override-builtin true
         :requires [[auto-build.tasks.repl :as build-repl] [auto-build.echo :refer [level1-header]]]
-        :task (-> (build-repl/repl level1-header "." (current-task))
+        :task (-> (build-repl/repl level1-header "." (current-task) [:repl] 7005)
                   exit)}
   uberjar {:doc "Uberjar"
            :override-builtin true

@@ -1,8 +1,7 @@
 (ns auto-js.start
   (:require
-   [auto-js.sim.activity  :as sim-activity]
-   [auto-js.sim.js        :as sim-js]
-   [auto-js.sim.js.xchart :as sim-js-xchart]))
+   [auto-js.sim.activity :as sim-activity]
+   [auto-js.sim.js       :as sim-js]))
 
 ;; ********************************************************************************
 ;; Tests
@@ -48,18 +47,21 @@
                :m4 {}}
    :seed #uuid "e85427c1-ed25-4ed4-9b11-52238d268265"})
 
-(def model (sim-js/run data 30000))
+(def model
+  (-> data
+      sim-js/prepare
+      (sim-js/run 30000)))
 
 (comment
   (-> (sim-js/run data 55)
       sim-activity/print-output)
   (sim-js/synthesis model)
-  (sim-js-xchart/build-charts [sim-js-xchart/products-input-output
-                               sim-js-xchart/products-nb
-                               sim-js-xchart/machine-occupation
-                               sim-js-xchart/input-stock
-                               sim-js-xchart/entity-throughput]
-                              (sim-js/synthesis model)
-                              {})
-  ;
+  ;;(require '[auto-js.sim.js.xchart :as sim-js-xchart])
+  ;; (sim-js-xchart/build-charts [sim-js-xchart/products-input-output
+  ;;                                sim-js-xchart/products-nb
+  ;;                                sim-js-xchart/machine-occupation
+  ;;                                sim-js-xchart/input-stock
+  ;;                                sim-js-xchart/entity-throughput]
+  ;;                               (sim-js/synthesis model)
+  ;;                               {})
 )

@@ -10,13 +10,17 @@
 ;; Simulation runner
 ;; ********************************************************************************
 
+(defn prepare
+  [model]
+  (-> model
+      (sim-activity/start (xoroshiro128 (:seed model)))
+      sim-activity/add-iteration-past-event
+      sim-activity/errors))
+
 (defn run
   "Run the jobshop model described in `model` until it `it-stop`"
   [model it-stop]
-  (loop [model (-> model
-                   (sim-activity/start (xoroshiro128 (:seed model)))
-                   sim-activity/add-iteration-past-event
-                   sim-activity/errors)]
+  (loop [model model]
     (if (seq (:errors model))
       model
       (let [{:keys [it bucket]} model

@@ -1,6 +1,6 @@
 (ns auto-js.js-test
   (:require
-   [auto-js.js  :as sut]
+   [auto-js.js :as sut]
    #?(:clj [clojure.test :refer [deftest is]]
       :cljs [cljs.test :refer [deftest is] :include-macros true])))
 

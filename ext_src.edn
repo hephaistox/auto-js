@@ -1,0 +1,5 @@
+{com.github.hephaistox/auto-build {:files [".zprintrc"
+                                           "LICENSE.md"
+                                           "docs/img/automaton_duck.png"
+                                           ".github/workflows/deploy_clojar.yml"
+                                           ".github/workflows/commit_validation.yml"]}}
